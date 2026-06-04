@@ -33,6 +33,7 @@ public class Server {
 
 	public static void main(String[] args) throws IOException {
 		Server server = new Server(9000);
+		System.out.println("Server is listening on port 9000");
 		server.acceptClients();
 	}
 }
