@@ -17,9 +17,12 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JTextArea;
 
 import client.ServerConnection;
+import shared.TradeOption;
 import shared.User;
 import shared.messages.RemoveStickersRequest.ListType;
 
@@ -39,9 +42,12 @@ public class MainFrame extends JFrame {
 	private final JButton deleteMissingButton = new JButton("Obriši");
 	private final JButton possibleTradesButton = new JButton("Moguće razmene");
 	private final JComboBox<String> peersBox = new JComboBox<>();
+	private final JTextArea tradeMessage = new JTextArea(2, 60);
 
 	private final HashMap<String, JCheckBox> duplicateBoxes = new HashMap<>();
 	private final HashMap<String, JCheckBox> missingBoxes = new HashMap<>();
+
+	private List<TradeOption> currentOptions = new ArrayList<>();
 
 	public MainFrame(ServerConnection conn, User user) {
 		this.conn = conn;
@@ -52,10 +58,20 @@ public class MainFrame extends JFrame {
 		setLayout(new BorderLayout(5, 5));
 		setPreferredSize(new Dimension(900, 500));
 
-		JPanel topBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
-		topBar.add(possibleTradesButton);
-		topBar.add(peersBox);
-		add(topBar, BorderLayout.NORTH);
+		JPanel topRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
+		topRow.add(possibleTradesButton);
+		topRow.add(peersBox);
+
+		tradeMessage.setEditable(false);
+		tradeMessage.setLineWrap(true);
+		tradeMessage.setWrapStyleWord(true);
+		tradeMessage.setBackground(getBackground());
+		tradeMessage.setBorder(BorderFactory.createEmptyBorder(0, 10, 5, 10));
+
+		JPanel top = new JPanel(new BorderLayout());
+		top.add(topRow, BorderLayout.NORTH);
+		top.add(tradeMessage, BorderLayout.CENTER);
+		add(top, BorderLayout.NORTH);
 
 		JPanel center = new JPanel(new GridLayout(1, 2, 10, 0));
 		center.add(buildSection("Moji duplikati", duplicatesPanel, deleteDuplicatesButton));
@@ -67,6 +83,8 @@ public class MainFrame extends JFrame {
 
 		deleteDuplicatesButton.addActionListener(e -> deleteSelected(ListType.DUPLICATES, duplicatesPanel, duplicateBoxes, user.getDuplicateCards()));
 		deleteMissingButton.addActionListener(e -> deleteSelected(ListType.MISSING, missingPanel, missingBoxes, user.getMissingCards()));
+		possibleTradesButton.addActionListener(e -> fetchPossibleTrades());
+		peersBox.addActionListener(e -> showSelectedTradeMessage());
 
 		pack();
 		setLocationRelativeTo(null);
@@ -130,5 +148,40 @@ public class MainFrame extends JFrame {
 			}
 		}
 		relayout(panel, boxMap);
+	}
+
+	private void fetchPossibleTrades() {
+		try {
+			currentOptions = conn.requestPossibleTrades();
+		} catch (IOException | ClassNotFoundException ex) {
+			JOptionPane.showMessageDialog(this, "Greška: " + ex.getMessage(), "Greška", JOptionPane.ERROR_MESSAGE);
+			return;
+		}
+		peersBox.removeAllItems();
+		tradeMessage.setText("");
+		if (currentOptions.isEmpty()) {
+			tradeMessage.setText("Nema mogućih razmena.");
+			return;
+		}
+		for (TradeOption opt : currentOptions) {
+			int count = Math.min(opt.toGive.size(), opt.toGet.size());
+			peersBox.addItem(opt.peerUsername + " (" + count + " sličica)");
+		}
+	}
+
+	private void showSelectedTradeMessage() {
+		int idx = peersBox.getSelectedIndex();
+		if (idx < 0 || idx >= currentOptions.size()) {
+			return;
+		}
+		TradeOption opt = currentOptions.get(idx);
+		tradeMessage.setText(
+				"Možeš da menjaš sličice sa korisnikom " + opt.peerUsername + ".\n"
+				+ "Ti imaš za njega sličice " + formatSet(opt.toGive)
+				+ ", a on za tebe sličice " + formatSet(opt.toGet));
+	}
+
+	private String formatSet(Set<Integer> set) {
+		return set.stream().sorted().map(String::valueOf).reduce((a, b) -> a + ", " + b).orElse("");
 	}
 }

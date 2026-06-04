@@ -9,6 +9,8 @@ import java.net.Socket;
 import shared.User;
 import shared.messages.LoginRequest;
 import shared.messages.LoginResponse;
+import shared.messages.PossibleTradesRequest;
+import shared.messages.PossibleTradesResponse;
 import shared.messages.RemoveStickersRequest;
 
 public class ConnectedClient implements Runnable {
@@ -50,10 +52,13 @@ public class ConnectedClient implements Runnable {
 		}
 	}
 
-	private void handle(Object msg) {
+	private void handle(Object msg) throws IOException {
 		if (msg instanceof RemoveStickersRequest) {
 			RemoveStickersRequest r = (RemoveStickersRequest) msg;
 			gameService.removeStickers(user.username, r.list, r.numbers);
+		} else if (msg instanceof PossibleTradesRequest) {
+			out.writeObject(new PossibleTradesResponse(gameService.possibleTradesFor(user.username)));
+			out.flush();
 		}
 	}
 
