@@ -4,7 +4,10 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.swing.BorderFactory;
@@ -12,7 +15,6 @@ import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
 import javax.swing.JFrame;
-import javax.swing.JLabel;
 import javax.swing.JPanel;
 
 import client.ServerConnection;
@@ -60,6 +62,9 @@ public class MainFrame extends JFrame {
 		renderCheckboxes(user.getDuplicateCards(), duplicatesPanel, duplicateBoxes);
 		renderCheckboxes(user.getMissingCards(), missingPanel, missingBoxes);
 
+		deleteDuplicatesButton.addActionListener(e -> deleteSelected(duplicatesPanel, duplicateBoxes, user.getDuplicateCards()));
+		deleteMissingButton.addActionListener(e -> deleteSelected(missingPanel, missingBoxes, user.getMissingCards()));
+
 		pack();
 		setLocationRelativeTo(null);
 	}
@@ -76,16 +81,41 @@ public class MainFrame extends JFrame {
 
 	private void renderCheckboxes(Set<Integer> numbers, JPanel panel, HashMap<String, JCheckBox> boxMap) {
 		int[] sorted = numbers.stream().mapToInt(Integer::intValue).sorted().toArray();
-		for (int i = 0; i < sorted.length; i++) {
-			int num = sorted[i];
+		for (int num : sorted) {
 			JCheckBox cb = new JCheckBox(String.valueOf(num));
-			int row = i / COLS;
-			int col = i % COLS;
-			cb.setBounds(col * CB_WIDTH, row * CB_HEIGHT, CB_WIDTH, CB_HEIGHT);
 			boxMap.put("Btn" + num, cb);
 			panel.add(cb);
 		}
+		relayout(panel, boxMap);
+	}
+
+	private void relayout(JPanel panel, HashMap<String, JCheckBox> boxMap) {
+		int[] sorted = boxMap.keySet().stream()
+				.mapToInt(k -> Integer.parseInt(k.substring(3)))
+				.sorted()
+				.toArray();
+		for (int i = 0; i < sorted.length; i++) {
+			JCheckBox cb = boxMap.get("Btn" + sorted[i]);
+			int row = i / COLS;
+			int col = i % COLS;
+			cb.setBounds(col * CB_WIDTH, row * CB_HEIGHT, CB_WIDTH, CB_HEIGHT);
+		}
 		panel.revalidate();
 		panel.repaint();
+	}
+
+	private void deleteSelected(JPanel panel, HashMap<String, JCheckBox> boxMap, Set<Integer> userSet) {
+		List<String> toRemove = new ArrayList<>();
+		for (Map.Entry<String, JCheckBox> entry : boxMap.entrySet()) {
+			if (entry.getValue().isSelected()) {
+				toRemove.add(entry.getKey());
+			}
+		}
+		for (String key : toRemove) {
+			JCheckBox cb = boxMap.remove(key);
+			panel.remove(cb);
+			userSet.remove(Integer.parseInt(key.substring(3)));
+		}
+		relayout(panel, boxMap);
 	}
 }
