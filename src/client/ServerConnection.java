@@ -5,9 +5,13 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
 
+import java.util.Set;
+
 import shared.User;
 import shared.messages.LoginRequest;
 import shared.messages.LoginResponse;
+import shared.messages.RemoveStickersRequest;
+import shared.messages.RemoveStickersRequest.ListType;
 
 public class ServerConnection {
 	private Socket socket;
@@ -30,6 +34,11 @@ public class ServerConnection {
 
 	public User getUser() {
 		return user;
+	}
+
+	public void removeStickers(ListType list, Set<Integer> numbers) throws IOException {
+		out.writeObject(new RemoveStickersRequest(list, numbers));
+		out.flush();
 	}
 
 	public void close() throws IOException {

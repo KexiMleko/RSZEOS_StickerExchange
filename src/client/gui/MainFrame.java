@@ -4,8 +4,10 @@ import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -19,6 +21,7 @@ import javax.swing.JPanel;
 
 import client.ServerConnection;
 import shared.User;
+import shared.messages.RemoveStickersRequest.ListType;
 
 public class MainFrame extends JFrame {
 	private static final long serialVersionUID = 1L;
@@ -62,8 +65,8 @@ public class MainFrame extends JFrame {
 		renderCheckboxes(user.getDuplicateCards(), duplicatesPanel, duplicateBoxes);
 		renderCheckboxes(user.getMissingCards(), missingPanel, missingBoxes);
 
-		deleteDuplicatesButton.addActionListener(e -> deleteSelected(duplicatesPanel, duplicateBoxes, user.getDuplicateCards()));
-		deleteMissingButton.addActionListener(e -> deleteSelected(missingPanel, missingBoxes, user.getMissingCards()));
+		deleteDuplicatesButton.addActionListener(e -> deleteSelected(ListType.DUPLICATES, duplicatesPanel, duplicateBoxes, user.getDuplicateCards()));
+		deleteMissingButton.addActionListener(e -> deleteSelected(ListType.MISSING, missingPanel, missingBoxes, user.getMissingCards()));
 
 		pack();
 		setLocationRelativeTo(null);
@@ -104,8 +107,9 @@ public class MainFrame extends JFrame {
 		panel.repaint();
 	}
 
-	private void deleteSelected(JPanel panel, HashMap<String, JCheckBox> boxMap, Set<Integer> userSet) {
+	private void deleteSelected(ListType list, JPanel panel, HashMap<String, JCheckBox> boxMap, Set<Integer> userSet) {
 		List<String> toRemove = new ArrayList<>();
+		Set<Integer> removedNumbers = new HashSet<>();
 		for (Map.Entry<String, JCheckBox> entry : boxMap.entrySet()) {
 			if (entry.getValue().isSelected()) {
 				toRemove.add(entry.getKey());
@@ -114,7 +118,16 @@ public class MainFrame extends JFrame {
 		for (String key : toRemove) {
 			JCheckBox cb = boxMap.remove(key);
 			panel.remove(cb);
-			userSet.remove(Integer.parseInt(key.substring(3)));
+			int num = Integer.parseInt(key.substring(3));
+			userSet.remove(num);
+			removedNumbers.add(num);
+		}
+		if (!removedNumbers.isEmpty()) {
+			try {
+				conn.removeStickers(list, removedNumbers);
+			} catch (IOException ex) {
+				ex.printStackTrace();
+			}
 		}
 		relayout(panel, boxMap);
 	}

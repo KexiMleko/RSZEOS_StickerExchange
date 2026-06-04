@@ -7,6 +7,7 @@ import java.util.Set;
 
 import shared.TradeOption;
 import shared.User;
+import shared.messages.RemoveStickersRequest.ListType;
 
 public class GameService {
 	private final UserRegistry userRegistry = new UserRegistry();
@@ -20,6 +21,15 @@ public class GameService {
 
 	public void logout(String username) {
 		sessionRegistry.remove(username);
+	}
+
+	public void removeStickers(String username, ListType list, Set<Integer> numbers) {
+		User user = userRegistry.get(username);
+		if (user == null) {
+			return;
+		}
+		Set<Integer> target = list == ListType.DUPLICATES ? user.getDuplicateCards() : user.getMissingCards();
+		target.removeAll(numbers);
 	}
 
 	public List<TradeOption> possibleTradesFor(String username) {

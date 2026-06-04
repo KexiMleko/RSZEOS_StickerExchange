@@ -9,6 +9,7 @@ import java.net.Socket;
 import shared.User;
 import shared.messages.LoginRequest;
 import shared.messages.LoginResponse;
+import shared.messages.RemoveStickersRequest;
 
 public class ConnectedClient implements Runnable {
 	private final Socket socket;
@@ -36,6 +37,7 @@ public class ConnectedClient implements Runnable {
 
 			while (true) {
 				Object msg = in.readObject();
+				handle(msg);
 			}
 		} catch (EOFException e) {
 		} catch (IOException | ClassNotFoundException e) {
@@ -44,11 +46,22 @@ public class ConnectedClient implements Runnable {
 			if (user != null) {
 				gameService.logout(user.username);
 			}
-			try {
-				socket.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+			closeSocket();
+		}
+	}
+
+	private void handle(Object msg) {
+		if (msg instanceof RemoveStickersRequest) {
+			RemoveStickersRequest r = (RemoveStickersRequest) msg;
+			gameService.removeStickers(user.username, r.list, r.numbers);
+		}
+	}
+
+	private void closeSocket() {
+		try {
+			socket.close();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 }
