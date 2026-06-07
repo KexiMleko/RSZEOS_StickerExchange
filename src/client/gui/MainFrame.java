@@ -44,8 +44,8 @@ public class MainFrame extends JFrame {
 	private final JComboBox<String> peersBox = new JComboBox<>();
 	private final JTextArea tradeMessage = new JTextArea(2, 60);
 
-	private final HashMap<String, JCheckBox> duplicateBoxes = new HashMap<>();
-	private final HashMap<String, JCheckBox> missingBoxes = new HashMap<>();
+	private final HashMap<Integer, JCheckBox> duplicateBoxes = new HashMap<>();
+	private final HashMap<Integer, JCheckBox> missingBoxes = new HashMap<>();
 
 	private List<TradeOption> currentOptions = new ArrayList<>();
 
@@ -100,23 +100,19 @@ public class MainFrame extends JFrame {
 		return section;
 	}
 
-	private void renderCheckboxes(Set<Integer> numbers, JPanel panel, HashMap<String, JCheckBox> boxMap) {
-		int[] sorted = numbers.stream().mapToInt(Integer::intValue).sorted().toArray();
-		for (int num : sorted) {
+	private void renderCheckboxes(Set<Integer> numbers, JPanel panel, HashMap<Integer, JCheckBox> boxMap) {
+		for (int num : numbers.stream().mapToInt(Integer::intValue).sorted().toArray()) {
 			JCheckBox cb = new JCheckBox(String.valueOf(num));
-			boxMap.put("Btn" + num, cb);
+			boxMap.put(num, cb);
 			panel.add(cb);
 		}
 		relayout(panel, boxMap);
 	}
 
-	private void relayout(JPanel panel, HashMap<String, JCheckBox> boxMap) {
-		int[] sorted = boxMap.keySet().stream()
-				.mapToInt(k -> Integer.parseInt(k.substring(3)))
-				.sorted()
-				.toArray();
+	private void relayout(JPanel panel, HashMap<Integer, JCheckBox> boxMap) {
+		int[] sorted = boxMap.keySet().stream().mapToInt(Integer::intValue).sorted().toArray();
 		for (int i = 0; i < sorted.length; i++) {
-			JCheckBox cb = boxMap.get("Btn" + sorted[i]);
+			JCheckBox cb = boxMap.get(sorted[i]);
 			int row = i / COLS;
 			int col = i % COLS;
 			cb.setBounds(col * CB_WIDTH, row * CB_HEIGHT, CB_WIDTH, CB_HEIGHT);
@@ -125,20 +121,17 @@ public class MainFrame extends JFrame {
 		panel.repaint();
 	}
 
-	private void deleteSelected(ListType list, JPanel panel, HashMap<String, JCheckBox> boxMap, Set<Integer> userSet) {
-		List<String> toRemove = new ArrayList<>();
+	private void deleteSelected(ListType list, JPanel panel, HashMap<Integer, JCheckBox> boxMap, Set<Integer> userSet) {
 		Set<Integer> removedNumbers = new HashSet<>();
-		for (Map.Entry<String, JCheckBox> entry : boxMap.entrySet()) {
+		for (Map.Entry<Integer, JCheckBox> entry : boxMap.entrySet()) {
 			if (entry.getValue().isSelected()) {
-				toRemove.add(entry.getKey());
+				removedNumbers.add(entry.getKey());
 			}
 		}
-		for (String key : toRemove) {
-			JCheckBox cb = boxMap.remove(key);
+		for (int num : removedNumbers) {
+			JCheckBox cb = boxMap.remove(num);
 			panel.remove(cb);
-			int num = Integer.parseInt(key.substring(3));
 			userSet.remove(num);
-			removedNumbers.add(num);
 		}
 		if (!removedNumbers.isEmpty()) {
 			try {
