@@ -193,9 +193,13 @@ public class MainFrame extends JFrame implements ServerListener {
 			return;
 		}
 		TradeOption opt = currentOptions.get(idx);
-		TradeOffer offer = new TradeOffer(user.username, opt.peerUsername, opt.toGive, opt.toGet);
+		TradeOfferDialog dialog = new TradeOfferDialog(this, opt, user.username);
+		dialog.setVisible(true);
+		if (!dialog.isSent()) {
+			return;
+		}
 		try {
-			conn.sendTradeOffer(offer);
+			conn.sendTradeOffer(dialog.getOffer());
 		} catch (IOException ex) {
 			JOptionPane.showMessageDialog(this, "Greška: " + ex.getMessage(), "Greška", JOptionPane.ERROR_MESSAGE);
 		}
