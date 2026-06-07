@@ -12,6 +12,8 @@ import shared.messages.LoginResponse;
 import shared.messages.PossibleTradesRequest;
 import shared.messages.PossibleTradesResponse;
 import shared.messages.RemoveStickersRequest;
+import shared.messages.TradeDecisionRequest;
+import shared.messages.TradeOfferRequest;
 
 public class ConnectedClient implements Runnable {
 	private final Socket socket;
@@ -58,6 +60,18 @@ public class ConnectedClient implements Runnable {
 			gameService.removeStickers(user.username, r.list, r.numbers);
 		} else if (msg instanceof PossibleTradesRequest) {
 			out.writeObject(new PossibleTradesResponse(gameService.possibleTradesFor(user.username)));
+			out.flush();
+		} else if (msg instanceof TradeOfferRequest) {
+			gameService.proposeTrade(((TradeOfferRequest) msg).offer);
+		} else if (msg instanceof TradeDecisionRequest) {
+			TradeDecisionRequest r = (TradeDecisionRequest) msg;
+			gameService.respondToTrade(r.offer, r.accepted);
+		}
+	}
+
+	public void send(Object msg) throws IOException {
+		synchronized (out) {
+			out.writeObject(msg);
 			out.flush();
 		}
 	}

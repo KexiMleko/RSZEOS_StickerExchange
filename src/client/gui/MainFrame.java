@@ -20,13 +20,16 @@ import javax.swing.JFrame;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
+import javax.swing.SwingUtilities;
 
 import client.ServerConnection;
+import client.ServerListener;
+import shared.TradeOffer;
 import shared.TradeOption;
 import shared.User;
 import shared.messages.RemoveStickersRequest.ListType;
 
-public class MainFrame extends JFrame {
+public class MainFrame extends JFrame implements ServerListener {
 	private static final long serialVersionUID = 1L;
 
 	private static final int CB_WIDTH = 50;
@@ -42,6 +45,7 @@ public class MainFrame extends JFrame {
 	private final JButton deleteMissingButton = new JButton("Obriši");
 	private final JButton possibleTradesButton = new JButton("Moguće razmene");
 	private final JComboBox<String> peersBox = new JComboBox<>();
+	private final JButton sendOfferButton = new JButton("Razmeni");
 	private final JTextArea tradeMessage = new JTextArea(2, 60);
 
 	private final HashMap<Integer, JCheckBox> duplicateBoxes = new HashMap<>();
@@ -61,6 +65,7 @@ public class MainFrame extends JFrame {
 		JPanel topRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 5));
 		topRow.add(possibleTradesButton);
 		topRow.add(peersBox);
+		topRow.add(sendOfferButton);
 
 		tradeMessage.setEditable(false);
 		tradeMessage.setLineWrap(true);
@@ -85,6 +90,9 @@ public class MainFrame extends JFrame {
 		deleteMissingButton.addActionListener(e -> deleteSelected(ListType.MISSING, missingPanel, missingBoxes, user.getMissingCards()));
 		possibleTradesButton.addActionListener(e -> fetchPossibleTrades());
 		peersBox.addActionListener(e -> showSelectedTradeMessage());
+		sendOfferButton.addActionListener(e -> sendSelectedOffer());
+
+		conn.setListener(this);
 
 		pack();
 		setLocationRelativeTo(null);
@@ -146,8 +154,9 @@ public class MainFrame extends JFrame {
 	private void fetchPossibleTrades() {
 		try {
 			currentOptions = conn.requestPossibleTrades();
-		} catch (IOException | ClassNotFoundException ex) {
+		} catch (IOException | InterruptedException ex) {
 			JOptionPane.showMessageDialog(this, "Greška: " + ex.getMessage(), "Greška", JOptionPane.ERROR_MESSAGE);
+			Thread.currentThread().interrupt();
 			return;
 		}
 		peersBox.removeAllItems();
@@ -176,5 +185,70 @@ public class MainFrame extends JFrame {
 
 	private String formatSet(Set<Integer> set) {
 		return set.stream().sorted().map(String::valueOf).reduce((a, b) -> a + ", " + b).orElse("");
+	}
+
+	private void sendSelectedOffer() {
+		int idx = peersBox.getSelectedIndex();
+		if (idx < 0 || idx >= currentOptions.size()) {
+			return;
+		}
+		TradeOption opt = currentOptions.get(idx);
+		TradeOffer offer = new TradeOffer(user.username, opt.peerUsername, opt.toGive, opt.toGet);
+		try {
+			conn.sendTradeOffer(offer);
+		} catch (IOException ex) {
+			JOptionPane.showMessageDialog(this, "Greška: " + ex.getMessage(), "Greška", JOptionPane.ERROR_MESSAGE);
+		}
+	}
+
+	@Override
+	public void onIncomingOffer(TradeOffer offer) {
+		SwingUtilities.invokeLater(() -> {
+			String msg = "Korisnik " + offer.initiator + " želi da menja sa tobom.\n"
+					+ "On daje: " + formatSet(offer.initiatorGives) + "\n"
+					+ "Ti daješ: " + formatSet(offer.recipientGives) + "\n\n"
+					+ "Prihvati razmenu?";
+			int choice = JOptionPane.showConfirmDialog(this, msg, "Ponuda za razmenu", JOptionPane.YES_NO_OPTION);
+			boolean accepted = choice == JOptionPane.YES_OPTION;
+			try {
+				conn.sendTradeDecision(offer, accepted);
+			} catch (IOException ex) {
+				JOptionPane.showMessageDialog(this, "Greška: " + ex.getMessage(), "Greška", JOptionPane.ERROR_MESSAGE);
+			}
+		});
+	}
+
+	@Override
+	public void onTradeResult(TradeOffer offer, boolean accepted) {
+		SwingUtilities.invokeLater(() -> {
+			if (!accepted) {
+				JOptionPane.showMessageDialog(this, "Razmena nije prihvaćena.", "Razmena", JOptionPane.INFORMATION_MESSAGE);
+				return;
+			}
+			boolean iAmInitiator = user.username.equals(offer.initiator);
+			Set<Integer> myGave = iAmInitiator ? offer.initiatorGives : offer.recipientGives;
+			Set<Integer> myGot = iAmInitiator ? offer.recipientGives : offer.initiatorGives;
+			applyLocally(myGave, myGot);
+			JOptionPane.showMessageDialog(this, "Razmena uspešna.", "Razmena", JOptionPane.INFORMATION_MESSAGE);
+		});
+	}
+
+	private void applyLocally(Set<Integer> gave, Set<Integer> got) {
+		for (int num : gave) {
+			JCheckBox cb = duplicateBoxes.remove(num);
+			if (cb != null) {
+				duplicatesPanel.remove(cb);
+			}
+			user.getDuplicateCards().remove(num);
+		}
+		for (int num : got) {
+			JCheckBox cb = missingBoxes.remove(num);
+			if (cb != null) {
+				missingPanel.remove(cb);
+			}
+			user.getMissingCards().remove(num);
+		}
+		relayout(duplicatesPanel, duplicateBoxes);
+		relayout(missingPanel, missingBoxes);
 	}
 }
