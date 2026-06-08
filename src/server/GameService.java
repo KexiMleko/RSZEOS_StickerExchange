@@ -20,12 +20,17 @@ public class GameService {
 
 	public User loginOrRegister(String username, ConnectedClient client) {
 		User user = userRegistry.loginOrRegister(username);
+		if(sessionRegistry.contains(username)){
+			ConnectedClient old=sessionRegistry.get(username);
+			old.disconnect();
+		}
+		
 		sessionRegistry.add(username, client);
 		return user;
 	}
 
-	public void logout(String username) {
-		sessionRegistry.remove(username);
+	public void logout(String username, ConnectedClient self) {
+		sessionRegistry.removeIfSame(username, self);
 	}
 
 	public void removeStickers(String username, ListType list, Set<Integer> numbers) {

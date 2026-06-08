@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.net.SocketException;
 
 import shared.User;
 import shared.messages.LoginRequest;
@@ -43,12 +44,12 @@ public class ConnectedClient implements Runnable {
 				Object msg = in.readObject();
 				handle(msg);
 			}
-		} catch (EOFException e) {
+		} catch (EOFException | SocketException e) {
 		} catch (IOException | ClassNotFoundException e) {
 			e.printStackTrace();
 		} finally {
 			if (user != null) {
-				gameService.logout(user.username);
+				gameService.logout(user.username, this);
 			}
 			closeSocket();
 		}
@@ -74,6 +75,9 @@ public class ConnectedClient implements Runnable {
 			out.writeObject(msg);
 			out.flush();
 		}
+	}
+	public void disconnect(){
+		closeSocket();
 	}
 
 	private void closeSocket() {

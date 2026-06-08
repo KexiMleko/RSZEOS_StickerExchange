@@ -15,6 +15,10 @@ public class SessionRegistry {
 		sessions.remove(username);
 	}
 
+	public void removeIfSame(String username, ConnectedClient client) {
+		sessions.remove(username, client);
+	}
+
 	public ConnectedClient get(String username) {
 		return sessions.get(username);
 	}
